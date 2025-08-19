@@ -1,0 +1,145 @@
+---
+title: "Step 5a: Phyloseq rarefaction and saving raw data for supplemental files"
+authors: "HK Hoff, TR Kartzinel"
+date: "2025-08-18"
+output:
+  html_document:
+    df_print: paged
+  keep_md: yes
+  df_print: paged
+  toc: yes
+  html_notebook: null
+params:
+  # don't change these except to correct the file paths 
+  todaydate: !r (format(Sys.Date(), '%Y%m%d'))
+  user: !r Sys.getenv('LOGNAME')
+  data_path: /oscar/data/tkartzin/projects
+  global_ref_lib_path: /oscar/data/tkartzin/global_ref_lib
+  local_ref_lib_path: /oscar/data/tkartzin/local_ref_lib
+  
+  # do change these to fit your data
+  project_code: "YNP"
+  step_4b_analysis_date: "20250107"
+  collection_type_filter: "COLLARED"
+  collection_type_column: "collection_type"
+  min_sample_reads: 1000 
+  rarefaction_seed: 1028
+  growth_forms_file: "local_global_merged_20241228.csv"
+  output_suffix: "collared" 
+---
+
+```{r}
+library(dplyr)
+library(phyloseq)
+library(speedyseq)
+library(glue)
+```
+
+# Filtering phyloseq object. If you have created a phyloseq object that contains more samples than you will use in your analysis, use this code to filter to the subset that you want. 
+```{r}
+# Read in phyloseq object 
+getwd()
+phyloseq_object <- glue("{params$project_code}_diet_local_global_{params$step_4b_analysis_date}.rds")
+phyloseq_object <- readRDS(phyloseq_object)
+
+# Write a copy of the full phyloseq sample data for recordkeeping
+phyloseq_test_sample_data <- data.frame(sample_data(phyloseq_object))
+write.csv(phyloseq_test_sample_data, file.path(".", paste0(params$step_4b_analysis_date, "_phyloseq_full_sample_data.csv"))) # write a copy of your full sample data for reporting numbers of samples included in bioinformatics pipeline before filtering
+
+# Filter phyloseq object to only the samples you plan to use in your analysis using parameters above
+phyloseq_subset <- subset_samples(phyloseq_object, get(params$collection_type_column) == params$collection_type_filter)
+
+# Name the new file to signify that it is a subset 
+filename_subset <- glue("{params$project_code}_diet_local_global_{params$step_4b_analysis_date}_{params$output_suffix}.rds") 
+saveRDS(phyloseq_subset, filename_subset)
+
+# Save individual phyloseq components for analysis 
+tax_table_df <- data.frame(tax_table(phyloseq_subset))
+otu_table_df <- data.frame(otu_table(phyloseq_subset))
+sample_data_df <- data.frame(sample_data(phyloseq_subset))
+```
+
+# Data filtering and rarefaction. 
+```{r}
+# Read in subsetted phyloseq 
+phyloseq_subset 
+
+# Check how many food taxa are present in your data subset
+taxa_sums(phyloseq_subset)
+
+# Set a seed for reproducibility of next steps 
+set.seed(params$rarefaction_seed)
+
+# Examine data attributes 
+nsamples(phyloseq_subset) # number of samples in your dataset 
+sample_sums(phyloseq_subset) # number of sequence reads in each sample 
+min(sample_sums(phyloseq_subset)) # minimum number of sequence reads in a sample 
+hist(sample_sums(phyloseq_subset)) # generate a histogram of sequence reads across samples
+physeq_nolow <- prune_samples(sample_sums(phyloseq_subset) >= params$min_sample_reads, phyloseq_subset) # remove any samples under a chosen threshold (here, 1000 reads is used but change parameters above to fit your data)
+min(sample_sums(physeq_nolow)) # check minimum number of sequence reads in a sample after filtering low-read samples
+hist(sample_sums(physeq_nolow)) # generate a histogram of sequence reads across samples after filtering
+
+# Write csv files for each phyloseq component (pre-rarefaction) for reporting 
+write.csv(tax_table(physeq_nolow), file.path(".", paste0(params$step_4b_analysis_date, "_tax_table_filtered.csv"))) # write taxonomy table to .csv
+write.csv(otu_table(physeq_nolow), file.path(".", paste0(params$step_4b_analysis_date, "_otu_table_filtered.csv"))) # write OTU table to .csv
+sample_data_filtered_df <- data.frame(sample_data(physeq_nolow))
+write.csv(sample_data_filtered_df, file.path(".", paste0(params$step_4b_analysis_date, "_sample_data_filtered.csv"))) # write sample data table (for just the subset of samples used in analysis - note that the above step in line 58 saves a sample data frame includes ALL samples that were included in the bioinformatics steps) to .csv. Both are useful for reporting. 
+write.csv(sample_data_df,"sample_data_physeq_updated.csv")
+
+# Rarefy to even sequencing read depth across samples 
+physeq_rarefy<-rarefy_even_depth(physeq_nolow, rngseed=T, replace=F) # the output here tells you how many 'OTUs' were removed 
+sample_sums(physeq_rarefy) # check sequence read counts across samples after rarefying (note: all should be the same)
+physeq_rarefy <- prune_taxa(taxa_sums(physeq_rarefy) > 0, physeq_rarefy) # ensure that all taxa retained have an above 0 read count
+ntaxa(physeq_rarefy) # total number of taxa in final dataset
+```
+
+# Sometimes, there is reason to merge an external table with one of your data tables (e.g., assigning plant taxa in diets to a functional group like grass vs. tree). These steps can be used to do this. Note that left_join_tax_table() allows us to join an external data frame to the taxonomy table within the phyloseq object (versus just joining the data frame to a data frame version of the taxonomy table).
+```{r}
+# Join tax_table in phyloseq object with table of functional groups - this is used for all further analyses. 
+growth_forms <- read.csv(params$growth_forms_file)
+physeq_rarefy_growth_forms <- left_join_tax_table(physeq_rarefy, growth_forms, by = "sequence") # note: must have a shared column between the two data frames
+physeq_rarefy_growth_forms
+
+# Verify the change and save a new version 
+tax_table(physeq_rarefy_growth_forms)
+final_filename <- glue("{params$project_code}_{params$output_suffix}_final_{params$step_4b_analysis_date}.rds")
+saveRDS(physeq_rarefy_growth_forms, final_filename)
+```
+
+# Saving datasets for public release: Pre-rarefaction sequence read counts across samples. Note that these steps reduce a large data frame to a simplified version with certain columns of interest; replace these column names with columns of interest in your dataset. Note also that this resulting .csv file should be opened in a table editor like Excel and formatted further before including in a paper; an example can be found in SI Dataset S3 in the following recent paper: 
+
+Hoff, H.K.; Littleford-Colquhoun, B.L.; Geremia, C.; McGarvey, L.; Anderson, H.A.; Kartzinel, R.; Segal, C.; Kartzinel, T.R. The apportionment of dietary diversity in wildlife. PNAS. doi: 10.1073/pnas.2502691122
+
+```{r}
+otu_tbl_pre_rarefaction <- data.frame(otu_table(phyloseq_subset))
+otu_tbl_pre_rarefaction$OTU <- rownames(otu_tbl_pre_rarefaction)
+tax_tbl_pre_rarefaction <- data.frame(tax_table(phyloseq_subset))
+tax_tbl_pre_rarefaction$OTU <- rownames(tax_tbl_pre_rarefaction)
+tax_tbl_pre_rarefaction <- data.frame(
+  sequence = tax_tbl_pre_rarefaction$sequence,
+  family_name = tax_tbl_pre_rarefaction$family_name,
+  genus_name = tax_tbl_pre_rarefaction$genus_name,
+  species_name = tax_tbl_pre_rarefaction$species_name,
+  OTU = tax_tbl_pre_rarefaction$OTU
+)
+otu_tbl_pre_rarefaction_with_plant_taxa <- left_join(otu_tbl_pre_rarefaction, tax_tbl_pre_rarefaction, by = "OTU")
+write.csv(otu_tbl_pre_rarefaction_with_plant_taxa, file.path(".", paste0(params$step_4b_analysis_date, "_", params$output_suffix, "_pre_rarefaction.csv")))
+```
+
+# Saving datasets for public release: Post-rarefaction sequence read counts across samples. Note that these steps reduce a large data frame to a simplified version with certain columns of interest; replace these column names with columns of interest in your dataset. Note also that this resulting .csv file should be opened in a table editor like Excel and formatted further before including in a paper; an example can be found in SI Dataset S4 in the paper above.
+```{r}
+otu_tbl_post_rarefaction <- data.frame(otu_table(physeq_rarefy_growth_forms))
+otu_tbl_post_rarefaction$OTU <- rownames(otu_tbl_post_rarefaction)
+tax_tbl_post_rarefaction <- data.frame(tax_table(physeq_rarefy_growth_forms))
+tax_tbl_post_rarefaction$OTU <- rownames(tax_tbl_post_rarefaction)
+tax_tbl_post_rarefaction <- data.frame(
+  sequence = tax_tbl_post_rarefaction$sequence,
+  family_name = tax_tbl_post_rarefaction$family_name,
+  genus_name = tax_tbl_post_rarefaction$genus_name,
+  species_name = tax_tbl_post_rarefaction$species_name,
+  OTU = tax_tbl_post_rarefaction$OTU
+)
+otu_tbl_post_rarefaction_with_plant_taxa <- left_join(otu_tbl_post_rarefaction, tax_tbl_post_rarefaction, by = "OTU")
+write.csv(otu_tbl_post_rarefaction_with_plant_taxa, 
+          file.path(".", paste0(params$step_4b_analysis_date, "_", params$output_suffix, "_post_rarefaction.csv")))
+```
