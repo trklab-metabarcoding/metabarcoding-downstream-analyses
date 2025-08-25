@@ -19,7 +19,7 @@ params:
   
   # do change these to fit your data
   
-  project_code: "YNP"
+  project_code: "test"
   step_3a_analysis_folder: "20240502_tdivoll"
   step_4b_analysis_date: "20250107"
   collection_type_filter: "COLLARED"
@@ -28,7 +28,7 @@ params:
   rarefaction_seed: 1028
   growth_forms_file: "local_global_merged_20241228.csv"
   output_suffix: "collared"
-  phyloseq_name: "test_diet_global_20240502.rds" # ex.,"test_diet_local_global_20250408.rds"
+  phyloseq_name: "test_diet_local_global_20250408.rds" # ex.,"test_diet_local_global_20250408.rds"
   # toggle these params according to where you phyloseq is coming from
   phyloseq_from_4a: "Y" # Y if using global db only
   phyloseq_from_4b: "N" # Y if using global + local db
@@ -56,38 +56,30 @@ here::i_am("./Step5a_phyloseq_data_prep.Rmd")
 Load Phyloseq object based on parameter conditions
 ```{r}
 if (params$phyloseq_from_4a == "Y") {
-  # RDS generated in Step4a (global only)
-  phyloseq_object <- file.path(params$data_path, params$project_code, "merged_runs", params$step_3a_analysis_folder, params$phyloseq_name)
+  # Copy RDS generated in Step4a (global only)
+  source_path <- file.path(params$data_path, params$project_code, "merged_runs", params$step_3a_analysis_folder, params$phyloseq_name)
+  file.copy(source_path, here(), overwrite = TRUE)
 } else if (params$phyloseq_from_4b == "Y") {
-  # RDS generated in Step4b (global and local)
-  phyloseq_object <- file.path(params$data_path, params$project_code, "merged_runs", params$step_3a_analysis_folder, params$phyloseq_name)
+  # Copy RDS generated in Step4b (global and local)
+  source_path <- file.path(params$data_path, params$project_code, "merged_runs", params$step_3a_analysis_folder, params$phyloseq_name)
+  file.copy(source_path, here(), overwrite = TRUE)
 } else if (params$phyloseq_from_manual == "Y") {
   # Manually copied RDS
-  phyloseq_object <- params$phyloseq_name
+  message("Using manually copied phyloseq file: ", params$phyloseq_name)
 } else {
   stop("One of the phyloseq parameters needs to be set to 'Y'")
 }
 ```
 
-Run this block for global and local - RDS generated in Step4b
-```{r}
-phyloseq_object <- file.path(params$data_path, params$project_code, "merged_runs", params$step_3a_analysis_folder, params$phyloseq_name)
-```
-
-Run this block if you manually copied your RDS
-```{r}
-phyloseq_object <- params$phyloseq_name
-```
-
 # Filtering phyloseq object. If you have created a phyloseq object that contains more samples than you will use in your analysis, use this code to filter to the subset that you want. 
 ```{r}
 # Read in phyloseq object 
-phyloseq_object <- glue("{params$project_code}_diet_local_global_{params$step_4b_analysis_date}.rds")
-phyloseq_object <- readRDS(phyloseq_object)
+phyloseq_object <- readRDS(here(params$phyloseq_name))
 
 # Write a copy of the full phyloseq sample data for recordkeeping
 phyloseq_test_sample_data <- data.frame(sample_data(phyloseq_object))
-write.csv(phyloseq_test_sample_data, file.path(".", paste0(params$step_4b_analysis_date, "_phyloseq_full_sample_data.csv"))) # write a copy of your full sample data for reporting numbers of samples included in bioinformatics pipeline before filtering
+
+write.csv(phyloseq_test_sample_data, file.path(here(paste0(params$step_4b_analysis_date, "_phyloseq_full_sample_data.csv")))) # write a copy of your full sample data for reporting numbers of samples included in bioinformatics pipeline before filtering
 
 # Filter phyloseq object to only the samples you plan to use in your analysis using parameters above
 phyloseq_subset <- subset_samples(phyloseq_object, get(params$collection_type_column) == params$collection_type_filter)
@@ -123,14 +115,16 @@ min(sample_sums(physeq_nolow)) # check minimum number of sequence reads in a sam
 hist(sample_sums(physeq_nolow)) # generate a histogram of sequence reads across samples after filtering
 
 # Write csv files for each phyloseq component (pre-rarefaction) for reporting 
-write.csv(tax_table(physeq_nolow), file.path(".", paste0(params$step_4b_analysis_date, "_tax_table_filtered.csv"))) # write taxonomy table to .csv
-write.csv(otu_table(physeq_nolow), file.path(".", paste0(params$step_4b_analysis_date, "_otu_table_filtered.csv"))) # write OTU table to .csv
+write.csv(tax_table(physeq_nolow), here(paste0(params$step_4b_analysis_date, "_tax_table_filtered.csv"))) # write taxonomy table to .csv
+
+write.csv(otu_table(physeq_nolow), here(paste0(params$step_4b_analysis_date, "_otu_table_filtered.csv"))) # write OTU table to .csv
+
 sample_data_filtered_df <- data.frame(sample_data(physeq_nolow))
-write.csv(sample_data_filtered_df, file.path(".", paste0(params$step_4b_analysis_date, "_sample_data_filtered.csv"))) # write sample data table (for just the subset of samples used in analysis - note that the above step in line 58 saves a sample data frame includes ALL samples that were included in the bioinformatics steps) to .csv. Both are useful for reporting. 
-write.csv(sample_data_df,"sample_data_physeq_updated.csv")
+write.csv(sample_data_filtered_df, here(paste0(params$step_4b_analysis_date, "_sample_data_filtered.csv"))) # write sample data table (for just the subset of samples used in analysis - note that the above step in line 58 saves a sample data frame includes ALL samples that were included in the bioinformatics steps) to .csv. Both are useful for reporting. 
+write.csv(sample_data_df, here(paste0(params$step_4b_analysis_date, "_sample_data_physeq_updated.csv")))
 
 # Rarefy to even sequencing read depth across samples 
-physeq_rarefy<-rarefy_even_depth(physeq_nolow, rngseed=T, replace=F) # the output here tells you how many 'OTUs' were removed 
+physeq_rarefy <- rarefy_even_depth(physeq_nolow, rngseed=T, replace=F) # the output here tells you how many 'OTUs' were removed 
 sample_sums(physeq_rarefy) # check sequence read counts across samples after rarefying (note: all should be the same)
 physeq_rarefy <- prune_taxa(taxa_sums(physeq_rarefy) > 0, physeq_rarefy) # ensure that all taxa retained have an above 0 read count
 ntaxa(physeq_rarefy) # total number of taxa in final dataset
@@ -146,7 +140,7 @@ physeq_rarefy_growth_forms
 # Verify the change and save a new version 
 tax_table(physeq_rarefy_growth_forms)
 final_filename <- glue("{params$project_code}_{params$output_suffix}_final_{params$step_4b_analysis_date}.rds")
-saveRDS(physeq_rarefy_growth_forms, final_filename)
+saveRDS(physeq_rarefy_growth_forms, here(final_filename))
 ```
 
 # Saving datasets for public release: Pre-rarefaction sequence read counts across samples. Note that these steps reduce a large data frame to a simplified version with certain columns of interest; replace these column names with columns of interest in your dataset. Note also that this resulting .csv file should be opened in a table editor like Excel and formatted further before including in a paper; an example can be found in SI Dataset S3 in the following recent paper: 
@@ -166,7 +160,7 @@ tax_tbl_pre_rarefaction <- data.frame(
   OTU = tax_tbl_pre_rarefaction$OTU
 )
 otu_tbl_pre_rarefaction_with_plant_taxa <- left_join(otu_tbl_pre_rarefaction, tax_tbl_pre_rarefaction, by = "OTU")
-write.csv(otu_tbl_pre_rarefaction_with_plant_taxa, file.path(".", paste0(params$step_4b_analysis_date, "_", params$output_suffix, "_pre_rarefaction.csv")))
+write.csv(otu_tbl_pre_rarefaction_with_plant_taxa, here(paste0(params$step_4b_analysis_date, "_", params$output_suffix, "_pre_rarefaction.csv")))
 ```
 
 # Saving datasets for public release: Post-rarefaction sequence read counts across samples. Note that these steps reduce a large data frame to a simplified version with certain columns of interest; replace these column names with columns of interest in your dataset. Note also that this resulting .csv file should be opened in a table editor like Excel and formatted further before including in a paper; an example can be found in SI Dataset S4 in the paper above.
@@ -184,5 +178,5 @@ tax_tbl_post_rarefaction <- data.frame(
 )
 otu_tbl_post_rarefaction_with_plant_taxa <- left_join(otu_tbl_post_rarefaction, tax_tbl_post_rarefaction, by = "OTU")
 write.csv(otu_tbl_post_rarefaction_with_plant_taxa, 
-          file.path(".", paste0(params$step_4b_analysis_date, "_", params$output_suffix, "_post_rarefaction.csv")))
+          here(paste0(params$step_4b_analysis_date, "_", params$output_suffix, "_post_rarefaction.csv")))
 ```
