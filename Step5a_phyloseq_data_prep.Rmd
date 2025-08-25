@@ -18,14 +18,21 @@ params:
   local_ref_lib_path: /oscar/data/tkartzin/local_ref_lib
   
   # do change these to fit your data
+  
   project_code: "YNP"
+  step_3a_analysis_folder: "20240502_tdivoll"
   step_4b_analysis_date: "20250107"
   collection_type_filter: "COLLARED"
   collection_type_column: "collection_type"
   min_sample_reads: 1000 
   rarefaction_seed: 1028
   growth_forms_file: "local_global_merged_20241228.csv"
-  output_suffix: "collared" 
+  output_suffix: "collared"
+  phyloseq_name: "test_diet_global_20240502.rds" # ex.,"test_diet_local_global_20250408.rds"
+  # toggle these params according to where you phyloseq is coming from
+  phyloseq_from_4a: "Y" # Y if using global db only
+  phyloseq_from_4b: "N" # Y if using global + local db
+  phyloseq_from_manual: "N" # Y if copied from elsewhere
 ---
 
 ```{r}
@@ -43,10 +50,38 @@ pacman::p_load(dplyr, phyloseq, speedyseq, glue, here)
 here::i_am("./Step5a_phyloseq_data_prep.Rmd")
 ```
 
+### Copy over your phyloseq object
+**NOTE:** If you are using this pipeline outside of the Brown network, manually copy your phyloseq object to this repository and toggle the `phyloseq_from_manual` param in the yaml above.
+
+Load Phyloseq object based on parameter conditions
+```{r}
+if (params$phyloseq_from_4a == "Y") {
+  # RDS generated in Step4a (global only)
+  phyloseq_object <- file.path(params$data_path, params$project_code, "merged_runs", params$step_3a_analysis_folder, params$phyloseq_name)
+} else if (params$phyloseq_from_4b == "Y") {
+  # RDS generated in Step4b (global and local)
+  phyloseq_object <- file.path(params$data_path, params$project_code, "merged_runs", params$step_3a_analysis_folder, params$phyloseq_name)
+} else if (params$phyloseq_from_manual == "Y") {
+  # Manually copied RDS
+  phyloseq_object <- params$phyloseq_name
+} else {
+  stop("One of the phyloseq parameters needs to be set to 'Y'")
+}
+```
+
+Run this block for global and local - RDS generated in Step4b
+```{r}
+phyloseq_object <- file.path(params$data_path, params$project_code, "merged_runs", params$step_3a_analysis_folder, params$phyloseq_name)
+```
+
+Run this block if you manually copied your RDS
+```{r}
+phyloseq_object <- params$phyloseq_name
+```
+
 # Filtering phyloseq object. If you have created a phyloseq object that contains more samples than you will use in your analysis, use this code to filter to the subset that you want. 
 ```{r}
 # Read in phyloseq object 
-getwd()
 phyloseq_object <- glue("{params$project_code}_diet_local_global_{params$step_4b_analysis_date}.rds")
 phyloseq_object <- readRDS(phyloseq_object)
 
