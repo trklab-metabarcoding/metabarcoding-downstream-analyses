@@ -26,13 +26,14 @@ params:
   collection_type_column: "collection_type"
   min_sample_reads: 1000 
   rarefaction_seed: 1028
-  growth_forms_file: "local_global_merged_20241228.csv"
+  additional_taxon_details_file: "local_global_merged_20241228.csv"
   output_suffix: "collared"
   phyloseq_name: "test_diet_local_global_20250408.rds" # ex.,"test_diet_local_global_20250408.rds"
   # toggle these params according to where you phyloseq is coming from
   phyloseq_from_4a: "Y" # Y if using global db only
   phyloseq_from_4b: "N" # Y if using global + local db
-  phyloseq_from_manual: "N" # Y if copied from elsewhere
+  phyloseq_from_manual: "N" # Y if copied from elsewhere 
+
 ---
 
 ```{r}
@@ -74,7 +75,9 @@ if (params$phyloseq_from_4a == "Y") {
 # Filtering phyloseq object. If you have created a phyloseq object that contains more samples than you will use in your analysis, use this code to filter to the subset that you want. 
 ```{r}
 # Read in phyloseq object 
-phyloseq_object <- readRDS(here(params$phyloseq_name))
+
+phyloseq_object <- readRDS(here(params$phyloseq_name)
+cat("Number of samples present in obitools analysis, pre-filtering and rarefaction:", nsamples(phyloseq_object), "\n") # number of samples that were present in your obitools analysis (note: in the below code, we will subset to just the samples you want to use in downstream analysis, filter out low-read samples, and rarefy)
 
 # Write a copy of the full phyloseq sample data for recordkeeping
 phyloseq_test_sample_data <- data.frame(sample_data(phyloseq_object))
@@ -100,19 +103,21 @@ sample_data_df <- data.frame(sample_data(phyloseq_subset))
 phyloseq_subset 
 
 # Check how many food taxa are present in your data subset
+cat("Number of taxa present in dataset pre-rarefaction:", ntaxa(phyloseq_subset), "\n")
 taxa_sums(phyloseq_subset)
 
 # Set a seed for reproducibility of next steps 
 set.seed(params$rarefaction_seed)
 
 # Examine data attributes 
-nsamples(phyloseq_subset) # number of samples in your dataset 
+cat("Number of samples present in my data pre-rarefaction:", nsamples(phyloseq_subset), "\n") # number of samples in your dataset 
+cat("Number of sequence reads in each sample in your data pre-rarefaction:\n")
 sample_sums(phyloseq_subset) # number of sequence reads in each sample 
-min(sample_sums(phyloseq_subset)) # minimum number of sequence reads in a sample 
+cat("Minimum number of sequence reads in a sample your data pre-rarefaction:", min(sample_sums(phyloseq_subset)), "\n") #minimum number of sequence reads in a sample
 hist(sample_sums(phyloseq_subset)) # generate a histogram of sequence reads across samples
 physeq_nolow <- prune_samples(sample_sums(phyloseq_subset) >= params$min_sample_reads, phyloseq_subset) # remove any samples under a chosen threshold (here, 1000 reads is used but change parameters above to fit your data)
-min(sample_sums(physeq_nolow)) # check minimum number of sequence reads in a sample after filtering low-read samples
-hist(sample_sums(physeq_nolow)) # generate a histogram of sequence reads across samples after filtering
+cat("Minimum number of sequence reads in a sample your data pre-rarefaction after checking that low-read samples were filtered:", min(sample_sums(physeq_nolow)), "\n") # re-check minimum number of sequence reads in a sample. If using earlier steps from the Kartzinel Lab pipeline, this step happens in 4a and 4b so this is a double check or a chance to filter if not using earlier steps from this particular pipeline
+hist(sample_sums(physeq_nolow)) # generate a histogram of sequence reads across samples after double checking filtering
 
 # Write csv files for each phyloseq component (pre-rarefaction) for reporting 
 write.csv(tax_table(physeq_nolow), here(paste0(params$step_4b_analysis_date, "_tax_table_filtered.csv"))) # write taxonomy table to .csv
@@ -125,22 +130,28 @@ write.csv(sample_data_df, here(paste0(params$step_4b_analysis_date, "_sample_dat
 
 # Rarefy to even sequencing read depth across samples 
 physeq_rarefy <- rarefy_even_depth(physeq_nolow, rngseed=T, replace=F) # the output here tells you how many 'OTUs' were removed 
+
+# Summaries of final rarefied dataset 
+cat("Number of sequence reads in each sample in final rarefied dataset:\n")
+
 sample_sums(physeq_rarefy) # check sequence read counts across samples after rarefying (note: all should be the same)
 physeq_rarefy <- prune_taxa(taxa_sums(physeq_rarefy) > 0, physeq_rarefy) # ensure that all taxa retained have an above 0 read count
-ntaxa(physeq_rarefy) # total number of taxa in final dataset
+cat("Number of taxa present in final rarefied dataset:", ntaxa(physeq_rarefy), "\n")
+taxa_sums(phyloseq_subset) # total number of taxa in final dataset
 ```
 
 # Sometimes, there is reason to merge an external table with one of your data tables (e.g., assigning plant taxa in diets to a functional group like grass vs. tree). These steps can be used to do this. Note that left_join_tax_table() allows us to join an external data frame to the taxonomy table within the phyloseq object (versus just joining the data frame to a data frame version of the taxonomy table).
 ```{r}
 # Join tax_table in phyloseq object with table of functional groups - this is used for all further analyses. 
-growth_forms <- read.csv(params$growth_forms_file)
-physeq_rarefy_growth_forms <- left_join_tax_table(physeq_rarefy, growth_forms, by = "sequence") # note: must have a shared column between the two data frames
-physeq_rarefy_growth_forms
+additional_taxon_details_file <- read.csv(params$additional_taxon_details_file)
+physeq_rarefy_detailed <- left_join_tax_table(physeq_rarefy, additional_taxon_details_file, by = "sequence") # note: must have a shared column between the two data frames
+physeq_rarefy_detailed
 
 # Verify the change and save a new version 
-tax_table(physeq_rarefy_growth_forms)
+tax_table(physeq_rarefy_detailed)
 final_filename <- glue("{params$project_code}_{params$output_suffix}_final_{params$step_4b_analysis_date}.rds")
-saveRDS(physeq_rarefy_growth_forms, here(final_filename))
+
+saveRDS(physeq_rarefy_detailed, here(final_filename))
 ```
 
 # Saving datasets for public release: Pre-rarefaction sequence read counts across samples. Note that these steps reduce a large data frame to a simplified version with certain columns of interest; replace these column names with columns of interest in your dataset. Note also that this resulting .csv file should be opened in a table editor like Excel and formatted further before including in a paper; an example can be found in SI Dataset S3 in the following recent paper: 
@@ -165,9 +176,9 @@ write.csv(otu_tbl_pre_rarefaction_with_plant_taxa, here(paste0(params$step_4b_an
 
 # Saving datasets for public release: Post-rarefaction sequence read counts across samples. Note that these steps reduce a large data frame to a simplified version with certain columns of interest; replace these column names with columns of interest in your dataset. Note also that this resulting .csv file should be opened in a table editor like Excel and formatted further before including in a paper; an example can be found in SI Dataset S4 in the paper above.
 ```{r}
-otu_tbl_post_rarefaction <- data.frame(otu_table(physeq_rarefy_growth_forms))
+otu_tbl_post_rarefaction <- data.frame(otu_table(physeq_rarefy_detailed))
 otu_tbl_post_rarefaction$OTU <- rownames(otu_tbl_post_rarefaction)
-tax_tbl_post_rarefaction <- data.frame(tax_table(physeq_rarefy_growth_forms))
+tax_tbl_post_rarefaction <- data.frame(tax_table(physeq_rarefy_detailed))
 tax_tbl_post_rarefaction$OTU <- rownames(tax_tbl_post_rarefaction)
 tax_tbl_post_rarefaction <- data.frame(
   sequence = tax_tbl_post_rarefaction$sequence,
