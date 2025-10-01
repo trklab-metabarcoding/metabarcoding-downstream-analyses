@@ -4,7 +4,7 @@ Downstream analyses after taxonomy assignment
 ## Overview
 This repository contains code for some common steps to prepare a phyloseq object—such as the one created in Step 4a/b of the trklab-metabarcoding obitools pipeline—for downstream analyses. Steps and their parameters listed should not be viewed as prescriptive; most are optional or customizable using different parameters based on the unique needs and goals of each project. These general steps, however, have become relatively standard steps in studies of herbivore diets in our lab, and should be considered before running major analyses (e.g., quantifying dietary richness or composition). 
 
-## The steps included in this repository are:
+## The steps included in this notebook are:
 1. Read in phyloseq object (e.g., from step 4a/b of trklab-metabarcoding).
 2. Filter to only samples of interest (e.g., a certain sample species, sequencing date, or collection type) if only a subset of samples will undergo major analysis. This is common in large projects. 
 3. Remove (“prune”) any low-read samples. The code provided filters out samples <1,000 reads but this parameter can be changed to fit individual project needs.
@@ -13,7 +13,7 @@ This repository contains code for some common steps to prepare a phyloseq object
 6. Merge phyloseq object with external data tables. This may occur if you want to add additional data on the taxa appearing in the taxonomy table, for example. 
 7. Data summaries throughout. These summaries are often printed alongside a message describing that output for ease of reference and code annotation. 
 
-##The final outputs are:
+##The final outputs of this notebook are:
 1) A filtered pruned, and rarefied phyloseq object ready for downstream analyses.
 2) Raw versions of OTU tables pre- and post-rarefaction to edit for inclusion in supplements to papers.
 3) Data summaries that include metrics to report in papers. 
