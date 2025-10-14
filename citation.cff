@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Hoff"
+  given-names: "Hannah"
+  orcid: "https://orcid.org/0000-0001-9976-6759"
+- family-names: "Divoll"
+  given-names: "Timothy"
+  orcid: "https://orcid.org/0000-0002-2586-6842"
+- family-names: "Littleford-Colquohoun"
+  given-names: "Bethan"
+  orcid: "https://orcid.org/0000-0002-2594-0061"
+- family-names: "Kartzinel"
+  given-names: "Tyler"
+  orcid: "https://orcid.org/0000-0002-8488-0580"
+title: "Metabarcoding data preparation for downstream analyses"
+version: 1.0.0
+doi: 10.5281/zenodo.17351280
+date-released: 2025-10-14
+url: " https://github.com/trklab-metabarcoding/metabarcoding-downstream-analyses/tree/v1.0.0 "
