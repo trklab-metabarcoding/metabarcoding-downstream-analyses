@@ -1,6 +1,8 @@
 # metabarcoding-downstream-analyses
 Downstream analyses after taxonomy assignment
 
+[![DOI](https://zenodo.org/badge/1040975084.svg)](https://doi.org/10.5281/zenodo.17351279)
+
 ## Overview
 This repository contains code for some common steps to prepare a phyloseq object—such as the one created in Step 4a/b of the trklab-metabarcoding obitools pipeline—for downstream analyses. Steps and their parameters listed should not be viewed as prescriptive; most are optional or customizable using different parameters based on the unique needs and goals of each project. These general steps, however, have become relatively standard steps in studies of herbivore diets in our lab, and should be considered before running major analyses (e.g., quantifying dietary richness or composition). 
 
