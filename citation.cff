@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: "If you use this software, please cite the research article as below."
 authors:
 - family-names: "Hoff"
   given-names: "Hannah K"
@@ -42,13 +42,6 @@ preferred-citation:
   journal: "Proceedings National Academy of Sciences"
   volume: 122
   issue: 29
-  doi: 10.1073/pnas.2502691122 
-title: "My Research Software"
-references:
-  - authors:
-      - family-names: Spaaks
-        given-names: "Jurriaan H."
-    title: "The foundation of Research Software"
-    type: article
+  doi: 10.1073/pnas.2502691122
 
  
