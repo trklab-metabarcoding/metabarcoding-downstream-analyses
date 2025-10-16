@@ -2,19 +2,53 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
 - family-names: "Hoff"
-  given-names: "Hannah"
+  given-names: "Hannah K"
   orcid: "https://orcid.org/0000-0001-9976-6759"
 - family-names: "Divoll"
-  given-names: "Timothy"
+  given-names: "Timothy J"
   orcid: "https://orcid.org/0000-0002-2586-6842"
 - family-names: "Littleford-Colquhoun"
-  given-names: "Bethan"
+  given-names: "Bethan L"
   orcid: "https://orcid.org/0000-0002-2594-0061"
 - family-names: "Kartzinel"
-  given-names: "Tyler"
+  given-names: "Tyler R"
   orcid: "https://orcid.org/0000-0002-8488-0580"
 title: "Metabarcoding data preparation for downstream analyses"
 version: 1.0.0
 doi: 10.5281/zenodo.17351280
 date-released: 2025-10-14
 url: " https://github.com/trklab-metabarcoding/metabarcoding-downstream-analyses/tree/v1.0.0 "
+preferred-citation:
+  authors:
+    - family-names: "Hoff"
+      given-names: "Hannah K"
+    - family-names: "Littleford-Colquhoun"
+      given-names: "Bethan L"
+    - family-names: "Kartzinel"
+      given-names: "Rebecca Y"
+    - family-names: "Anderson"
+      given-names: "H M"
+    - family-names: "Geremia"
+      given-names: "C"
+    - family-names: "McGarvey"
+      given-names: "L M"
+    - family-names: "Segal"
+      given-names: "C"
+    - family-names: "Kartzinel"
+      given-names: "Tyler R"
+  title: "The apportionment of dietary diversity in wildlife"
+  type: article
+  year: 2025
+  journal: "Proceedings National Academy of Sciences"
+  volume: 122
+  issue: 29
+  doi: 10.1073/pnas.2502691122 
+title: "My Research Software"
+references:
+  - authors:
+      - family-names: Spaaks
+        given-names: "Jurriaan H."
+    title: "The foundation of Research Software"
+    type: article
+
+ 
